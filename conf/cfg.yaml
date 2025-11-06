@@ -1,0 +1,3 @@
+---
+directory: /root/github/file_watch/data
+file_pattern: ^out.*\.log$

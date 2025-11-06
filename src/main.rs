@@ -12,7 +12,7 @@ use watcher::FileWatcher;
 #[tokio::main]
 async fn main() -> Result<()> {
     let contents = fs::read_to_string("/root/github/file_watch/conf/cfg.yaml")?;
-    let mut cfg: config::AppConfig = serde_yaml::from_str(&contents)?;
+    let cfg: config::AppConfig = serde_yaml::from_str(&contents)?;
 
     let watcher = FileWatcher::new(&cfg);
 
