@@ -16,7 +16,7 @@ pub struct FileState {
 }
 
 pub struct FileReader {
-    states: Mutex<HashMap<PathBuf, FileState>>,
+    states: Mutex<HashMap<String, FileState>>,
     re: Regex,
 }
 
@@ -35,6 +35,7 @@ impl FileReader {
             let path = entry.path();
             if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
                 if self.re.is_match(filename) {
+                    println!("read_existing: {:?}", path);
                     self.read_incremental(&path)?;
                 }
             }
@@ -53,8 +54,7 @@ impl FileReader {
                 poisoned.into_inner()
             }
         };
-
-        let state = map.entry(path.to_path_buf()).or_default();
+        let state = map.entry(path.file_name().unwrap().to_str().unwrap().to_string()).or_default();
         file.seek(SeekFrom::Start(state.offset))?;
 
         let mut new_data = String::new();
@@ -64,6 +64,7 @@ impl FileReader {
         }
 
         state.offset += bytes_read as u64;
+
         state.buffer.push_str(&new_data);
 
         // 按行分割处理

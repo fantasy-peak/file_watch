@@ -1,29 +1,30 @@
+use crate::config::AppConfig;
 use crate::reader::FileReader;
 use anyhow::Result;
 use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use regex::Regex;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task;
 
 pub struct FileWatcher {
-    dir: String,
+    cfg: AppConfig,
 }
 
 impl FileWatcher {
-    pub fn new(dir: &str) -> Self {
+    pub fn new(config: &AppConfig) -> Self {
         Self {
-            dir: dir.to_string(),
+            cfg: config.clone(),
         }
     }
 
-    pub async fn run(&self, mut shutdown_rx: oneshot::Receiver<()>, re:&str) -> Result<()> {
+    pub async fn run(&self, mut shutdown_rx: oneshot::Receiver<()>, re: &str) -> Result<()> {
         let states = Arc::new(FileReader::new(re));
-        let (tx, mut rx) = mpsc::channel(100);
+        let (tx, mut rx) = mpsc::channel(5000);
 
-        let dir_clone = self.dir.clone();
+        let dir_clone = self.cfg.directory.clone();
         let tx_clone = tx.clone();
         let exit_flag = Arc::new(AtomicBool::new(false));
         let exit_flag_clone = exit_flag.clone();
@@ -45,13 +46,13 @@ impl FileWatcher {
             Ok(())
         });
 
-        println!("📡 Watching directory: {}", self.dir);
+        println!("📡 Watching directory: {}", self.cfg.directory);
 
         // 启动时读取已有文件
-        if let Err(e) = states.read_existing(&self.dir) {
+        if let Err(e) = states.read_existing(&self.cfg.directory) {
             eprintln!("⚠️ Failed to read existing files: {}", e);
         }
-
+        let re = Regex::new(self.cfg.file_pattern.as_str())?;
         loop {
             tokio::select! {
                 maybe_event = rx.recv() => {
@@ -59,7 +60,7 @@ impl FileWatcher {
                         Some(event) => {
                             for path in event.paths {
                                 if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-                                    let re = Regex::new(r"^out.*\.log$").unwrap();
+                                    
                                     if re.is_match(filename) {
                                         match event.kind {
                                             EventKind::Modify(_) => {

@@ -1,19 +1,20 @@
-mod watcher;
-mod reader;
+mod config;
 mod processor;
-
-use std::process::exit;
+mod reader;
+mod watcher;
 
 use anyhow::Result;
-use watcher::FileWatcher;
+use serde_yaml;
+use std::fs;
 use tokio::signal;
+use watcher::FileWatcher;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let dir = "./";
-    // std::fs::create_dir_all(dir)?;
+    let contents = fs::read_to_string("/root/github/file_watch/conf/cfg.yaml")?;
+    let mut cfg: config::AppConfig = serde_yaml::from_str(&contents)?;
 
-    let watcher = FileWatcher::new(dir);
+    let watcher = FileWatcher::new(&cfg);
 
     // 创建一个关闭信号通道
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
@@ -25,9 +26,9 @@ async fn main() -> Result<()> {
             let _ = shutdown_tx.send(());
         }
     });
-    let re = String::from(r"^out.*\.log$");
+    // let re = String::from(r"^out.*\.log$");
     // 启动监控（直到接收到关闭信号）
-    watcher.run(shutdown_rx, &re).await?;
+    watcher.run(shutdown_rx, &cfg.file_pattern).await?;
 
     println!("👋 Service stopped gracefully.");
     Ok(())
