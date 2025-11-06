@@ -54,7 +54,12 @@ impl FileReader {
                 poisoned.into_inner()
             }
         };
-        let state = map.entry(path.file_name().unwrap().to_str().unwrap().to_string()).or_default();
+        let filename = path
+            .file_name()
+            .and_then(|f| f.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let state = map.entry(filename).or_default();
         file.seek(SeekFrom::Start(state.offset))?;
 
         let mut new_data = String::new();
